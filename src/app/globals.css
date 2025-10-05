@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Paleta de cores - Verde-água */
+  --primary: #0d9488;         /* Verde-água principal (teal-600) */
+  --primary-dark: #0f766e;    /* Verde-água escuro (teal-700) */
+  --primary-light: #14b8a6;   /* Verde-água claro (teal-500) */
+  --primary-lightest: #ccfbf1; /* Verde-água bem claro (teal-50) */
+  
+  /* Cores de estado */
+  --success: #10b981;         /* Verde para sucesso */
+  --success-dark: #0d9f7e;    /* Verde escuro para sucesso */
+  --success-light: #34d399;   /* Verde claro para sucesso */
+  
+  --error: #ef4444;           /* Vermelho para erros */
+  --error-dark: #dc2626;      /* Vermelho escuro para erros */
+  --error-light: #f87171;     /* Vermelho claro para erros */
+  
+  --warning: #f59e0b;         /* Amarelo para alertas */
+  --warning-dark: #d97706;    /* Amarelo escuro para alertas */
+  --warning-light: #fbbf24;   /* Amarelo claro para alertas */
+  
+  /* Cores de fundo */
+  --background: #ffffff;      /* Fundo branco */
+  --foreground: #0f172a;      /* Texto preto azulado */
+  --muted: #64748b;           /* Cinza para texto secundário */
+  --border: #e2e8f0;          /* Bordas claras */
+  
+  /* Componentes */
+  --card-bg: #ffffff;         /* Fundo dos cards branco */
+  --card-hover: #f8fafc;      /* Hover mais claro */
+  --sidebar-bg: #0d9488;      /* Sidebar em verde-água */
+  --header-bg: #ffffff;       /* Header branco */
+  --accent: #0d9488;          /* Verde-água para acentos */
+  
+  /* Cores de texto */
+  --text-primary: #0f172a;    /* Texto preto azulado */
+  --text-secondary: #334155;  /* Texto cinza escuro */
+  --text-muted: #64748b;      /* Texto cinza */
+  --text-on-primary: #ffffff; /* Texto branco sobre fundo colorido */
+}
+
+/* Estilos globais para elementos de formulário */
+input, textarea, select {
+  color: black !important;
+}
+
+option {
+  color: black !important;
+}
+
+/* Reset básico para responsividade */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  height: 100%;
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animações suaves */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Foco acessível */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Sombras personalizadas */
+.shadow-card {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.shadow-card-hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Gradientes */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+}
+
+/* Utilitários para o PDV */
+.pdv-card {
+  @apply bg-white rounded-2xl shadow-card border border-gray-100;
+}
+
+.pdv-button {
+  @apply px-4 py-2 rounded-xl font-medium transition-all duration-200 focus:ring-2 focus:ring-offset-2;
+}
+
+.pdv-button-primary {
+  @apply pdv-button bg-primary text-white hover:bg-primary-dark focus:ring-primary;
+}
+
+.pdv-button-secondary {
+  @apply pdv-button bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500;
+}
+
+.pdv-input {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-colors text-black;
+}
+
+/* Responsividade melhorada */
+@media (max-width: 640px) {
+  .pdv-card {
+    @apply rounded-xl mx-2;
+  }
+  
+  .pdv-button {
+    @apply px-3 py-2 text-sm;
+  }
+  
+  .pdv-input {
+    @apply px-3 py-2 text-base;
+  }
+}
+
+/* Correções para dispositivos móveis */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px; /* Previne zoom automático no iOS */
+  }
+  
+  input, textarea, select {
+    font-size: 16px; /* Previne zoom automático no iOS */
+    color: black !important; /* Garante texto preto em dispositivos móveis */
+  }
+  
+  option {
+    color: black !important; /* Garante texto preto nas opções */
+  }
+}
+
+/* Utilitários de layout responsivo */
+.container-responsive {
+  @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.grid-responsive {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+}
+
+/* Correções para overflow */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
