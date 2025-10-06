@@ -10,7 +10,8 @@ import {
   UsersIcon,
   CubeIcon,
   ArrowDownTrayIcon,
-  PrinterIcon
+  PrinterIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -98,25 +99,137 @@ export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState('')
   const [reportData, setReportData] = useState<ReportData>({})
   const [loading, setLoading] = useState(false)
+  
+  // Estados para filtros avançados
+  const [filterType, setFilterType] = useState<'date' | 'period' | 'range'>('period')
+  const [periodType, setPeriodType] = useState<'day' | 'month' | 'year'>('day')
+  const [periodValue, setPeriodValue] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  
+  const [tempFilters, setTempFilters] = useState({
+    filterType: 'period' as 'date' | 'period' | 'range',
+    selectedDate: '',
+    periodType: 'day' as 'day' | 'month' | 'year',
+    periodValue: '',
+    startDate: '',
+    endDate: '',
+    categoryFilter: 'all',
+    searchTerm: ''
+  })
 
-  // Função para calcular data de início baseada no período
-  const getStartDate = (period: string) => {
+  // Função para aplicar filtros
+  const applyFilters = () => {
+    setFilterType(tempFilters.filterType)
+    setSelectedPeriod('30') // Reset para valor padrão
+    setPeriodType(tempFilters.periodType)
+    setPeriodValue(tempFilters.periodValue)
+    setStartDate(tempFilters.startDate)
+    setEndDate(tempFilters.endDate)
+    setCategoryFilter(tempFilters.categoryFilter)
+    setSearchTerm(tempFilters.searchTerm)
+    
+    toast.success('Filtros aplicados com sucesso!')
+  }
+
+  // Função para limpar filtros
+  const clearFilters = () => {
+    const clearedFilters = {
+      filterType: 'period' as 'date' | 'period' | 'range',
+      selectedDate: '',
+      periodType: 'day' as 'day' | 'month' | 'year',
+      periodValue: '',
+      startDate: '',
+      endDate: '',
+      categoryFilter: 'all',
+      searchTerm: ''
+    }
+    
+    setTempFilters(clearedFilters)
+    setFilterType(clearedFilters.filterType)
+    setPeriodType(clearedFilters.periodType)
+    setPeriodValue(clearedFilters.periodValue)
+    setStartDate(clearedFilters.startDate)
+    setEndDate(clearedFilters.endDate)
+    setCategoryFilter(clearedFilters.categoryFilter)
+    setSearchTerm(clearedFilters.searchTerm)
+    setSelectedPeriod('30')
+    
+    toast.success('Filtros limpos!')
+  }
+
+  // Função para calcular data de início baseada no período ou filtros
+  const getStartDate = (period?: string) => {
+    // Se há filtros avançados aplicados, usar eles
+    if (filterType === 'date' && tempFilters.selectedDate) {
+      const date = new Date(tempFilters.selectedDate)
+      return date.toISOString()
+    } else if (filterType === 'period' && periodValue) {
+      if (periodType === 'day') {
+        const date = new Date(periodValue)
+        return date.toISOString()
+      } else if (periodType === 'month') {
+        const [year, month] = periodValue.split('-')
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+        return date.toISOString()
+      } else if (periodType === 'year') {
+        const date = new Date(parseInt(periodValue), 0, 1)
+        return date.toISOString()
+      }
+    } else if (filterType === 'range' && tempFilters.startDate) {
+      const date = new Date(tempFilters.startDate)
+      return date.toISOString()
+    }
+    
+    // Fallback para período padrão
     const now = new Date()
-    const days = parseInt(period)
+    const days = parseInt(period || selectedPeriod)
     const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000))
     return startDate.toISOString()
+  }
+
+  // Função para calcular data final (para intervalos)
+  const getEndDate = () => {
+    if (filterType === 'range' && endDate) {
+      const date = new Date(endDate)
+      date.setHours(23, 59, 59, 999) // Final do dia
+      return date.toISOString()
+    } else if (filterType === 'period' && periodValue) {
+      if (periodType === 'month') {
+        const [year, month] = periodValue.split('-')
+        const date = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999) // Último dia do mês
+        return date.toISOString()
+      } else if (periodType === 'year') {
+        const date = new Date(parseInt(periodValue), 11, 31, 23, 59, 59, 999) // 31 de dezembro
+        return date.toISOString()
+      }
+    }
+    
+    return new Date().toISOString()
   }
 
   // Função para gerar relatório de vendas
   const generateSalesReport = async (period: string) => {
     try {
-      const startDate = getStartDate(period)
+      const startDateStr = getStartDate(period)
+      const endDateStr = getEndDate()
       
-      // Buscar vendas do período (sem join)
-      const { data: sales, error: salesError } = await supabase
+      // Buscar vendas do período com filtros aplicados
+      let query = supabase
         .from('sales')
         .select('id, total_amount, created_at')
-        .gte('created_at', startDate)
+        .gte('created_at', startDateStr)
+
+      // Aplicar filtro de data final se for intervalo
+      if (filterType === 'range' && endDate) {
+        query = query.lte('created_at', endDateStr)
+      } else if (filterType === 'period' && (periodType === 'month' || periodType === 'year')) {
+        query = query.lte('created_at', endDateStr)
+      }
+
+      const { data: sales, error: salesError } = await query
 
       if (salesError) throw salesError
 
@@ -153,10 +266,22 @@ export default function ReportsPage() {
 
       // Buscar informações dos produtos
       const productIds = [...new Set(saleItems?.map(item => item.product_id) || [])]
-      const { data: products, error: productsError } = await supabase
+      let productsQuery = supabase
         .from('products')
         .select('id, name, category')
         .in('id', productIds)
+
+      // Aplicar filtro de categoria se especificado
+      if (categoryFilter !== 'all') {
+        productsQuery = productsQuery.eq('category', categoryFilter)
+      }
+
+      // Aplicar filtro de busca se especificado
+      if (searchTerm) {
+        productsQuery = productsQuery.ilike('name', `%${searchTerm}%`)
+      }
+
+      const { data: products, error: productsError } = await productsQuery
 
       if (productsError) {
         console.error('Erro ao buscar products:', productsError)
@@ -179,7 +304,9 @@ export default function ReportsPage() {
       
       saleItems?.forEach(item => {
         const product = productsMap.get(item.product_id)
-        const productName = product?.name || 'Produto não identificado'
+        if (!product) return // Pular se produto não passou nos filtros
+        
+        const productName = product.name || 'Produto não identificado'
         
         if (!productSales[productName]) {
           productSales[productName] = { quantity: 0, revenue: 0 }
@@ -527,9 +654,298 @@ export default function ReportsPage() {
     }
   }
 
+  // Função para formatar dados para exportação
+  const formatReportData = (reportId: string) => {
+    // Verificar se há dados do relatório disponíveis
+    if (!reportData || Object.keys(reportData).length === 0) {
+      return {
+        title: 'Relatório',
+        generatedAt: new Date().toLocaleString('pt-BR'),
+        period: getFilterDescription(),
+        data: {}
+      }
+    }
+
+    const reportTitle = reportTypes.find(r => r.id === reportId)?.title || 'Relatório'
+    
+    let formattedData: any = {
+      title: reportTitle,
+      generatedAt: new Date().toLocaleString('pt-BR'),
+      period: getFilterDescription(),
+      data: {}
+    }
+
+    switch (reportId) {
+      case 'sales-summary':
+        if (reportData.salesSummary) {
+          formattedData.data = {
+            resumo: {
+              'Total de Vendas': reportData.salesSummary.totalSales,
+              'Receita Total': `R$ ${reportData.salesSummary.totalRevenue?.toFixed(2) || '0,00'}`,
+              'Ticket Médio': `R$ ${reportData.salesSummary.averageTicket?.toFixed(2) || '0,00'}`
+            },
+            topProdutos: reportData.salesSummary.topProducts?.map((p, i) => ({
+              'Posição': i + 1,
+              'Produto': p.name,
+              'Quantidade': p.quantity,
+              'Receita': `R$ ${p.revenue.toFixed(2)}`
+            })) || []
+          }
+        }
+        break
+      
+      case 'products-performance':
+        if (reportData.productsPerformance) {
+          formattedData.data = {
+            resumo: {
+              'Total de Produtos': reportData.productsPerformance.totalProducts,
+              'Produtos com Estoque Baixo': reportData.productsPerformance.lowStockProducts || 0
+            },
+            produtosMaisVendidos: reportData.productsPerformance.topSellingProducts?.map((p, i) => ({
+              'Posição': i + 1,
+              'Produto': p.name,
+              'Quantidade Vendida': p.quantity
+            })) || [],
+            distribuicaoCategorias: reportData.productsPerformance.categoryDistribution?.map((c) => ({
+              'Categoria': c.category,
+              'Quantidade': c.count
+            })) || []
+          }
+        }
+        break
+      
+      case 'customers-report':
+        if (reportData.customersReport) {
+          formattedData.data = {
+            resumo: {
+              'Total de Clientes': reportData.customersReport.totalCustomers,
+              'Clientes Ativos': reportData.customersReport.activeCustomers
+            },
+            topClientes: reportData.customersReport.topCustomers?.map((c, i) => ({
+              'Posição': i + 1,
+              'Cliente': c.name,
+              'Total de Compras': c.totalPurchases
+            })) || []
+          }
+        }
+        break
+      
+      case 'inventory-report':
+        if (reportData.inventoryReport) {
+          formattedData.data = {
+            resumo: {
+              'Total de Produtos': reportData.inventoryReport.totalProducts,
+              'Valor Total do Estoque': `R$ ${reportData.inventoryReport.totalValue?.toFixed(2) || '0,00'}`
+            },
+            estoqueBaixo: reportData.inventoryReport.lowStockItems?.map(item => ({
+              'Produto': item.name,
+              'Estoque Atual': item.stock,
+              'Estoque Mínimo': item.minStock,
+              'Status': item.stock <= item.minStock ? 'CRÍTICO' : 'BAIXO'
+            })) || []
+          }
+        }
+        break
+      
+      case 'financial-report':
+        if (reportData.financialReport) {
+          formattedData.data = {
+            resumo: {
+              'Receita Total': `R$ ${reportData.financialReport.totalRevenue?.toFixed(2) || '0,00'}`,
+              'Custo Total': `R$ ${reportData.financialReport.totalCost?.toFixed(2) || '0,00'}`,
+              'Lucro': `R$ ${reportData.financialReport.profit?.toFixed(2) || '0,00'}`,
+              'Margem de Lucro': `${reportData.financialReport.profitMargin?.toFixed(2) || '0,00'}%`
+            }
+          }
+        }
+        break
+    }
+
+    return formattedData
+  }
+
+  // Função para obter descrição do filtro aplicado
+  const getFilterDescription = () => {
+    if (filterType === 'date' && tempFilters.selectedDate) {
+      return `Data: ${new Date(tempFilters.selectedDate).toLocaleDateString('pt-BR')}`
+    } else if (filterType === 'period' && periodValue) {
+      if (periodType === 'day') {
+        return `Dia: ${new Date(periodValue).toLocaleDateString('pt-BR')}`
+      } else if (periodType === 'month') {
+        const [year, month] = periodValue.split('-')
+        return `Mês: ${month}/${year}`
+      } else if (periodType === 'year') {
+        return `Ano: ${periodValue}`
+      }
+    } else if (filterType === 'range' && startDate && endDate) {
+      return `Período: ${new Date(startDate).toLocaleDateString('pt-BR')} até ${new Date(endDate).toLocaleDateString('pt-BR')}`
+    }
+    return `Últimos ${selectedPeriod} dias`
+  }
+
+  // Função principal para download de relatórios
   const handleDownloadReport = (reportId: string, format: string) => {
-    // Implementação futura para download de relatórios
-    toast(`Download de ${format.toUpperCase()} será implementado em breve`)
+    try {
+      const formattedData = formatReportData(reportId)
+      
+      if (!formattedData.data || Object.keys(formattedData.data).length === 0) {
+        toast.error('Nenhum dado disponível para exportação. Gere o relatório primeiro.')
+        return
+      }
+
+      switch (format) {
+        case 'pdf':
+          generatePDF(formattedData)
+          break
+        case 'excel':
+          generateExcel(formattedData)
+          break
+        case 'print':
+          printReport(formattedData)
+          break
+        default:
+          toast.error('Formato não suportado')
+      }
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error)
+      toast.error('Erro ao exportar relatório')
+    }
+  }
+
+  // Função para gerar PDF
+  const generatePDF = (data: any) => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Não foi possível abrir a janela de impressão')
+      return
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${data.title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0d9488; padding-bottom: 20px; }
+          .title { font-size: 24px; font-weight: bold; color: #0d9488; margin-bottom: 10px; }
+          .info { font-size: 14px; color: #666; }
+          .section { margin: 20px 0; }
+          .section-title { font-size: 18px; font-weight: bold; color: #0d9488; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+          .summary { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          .summary-item { display: flex; justify-content: space-between; margin: 8px 0; }
+          .summary-label { font-weight: bold; }
+          .table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          .table th, .table td { border: 1px solid #d1d5db; padding: 12px; text-align: left; }
+          .table th { background: #0d9488; color: white; font-weight: bold; }
+          .table tr:nth-child(even) { background: #f9fafb; }
+          .no-data { text-align: center; color: #6b7280; font-style: italic; padding: 20px; }
+          @media print {
+            body { margin: 0; }
+            .header { page-break-after: avoid; }
+            .section { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">${data.title}</div>
+          <div class="info">Gerado em: ${data.generatedAt}</div>
+          <div class="info">Período: ${data.period}</div>
+        </div>
+        
+        ${Object.entries(data.data).map(([sectionKey, sectionData]: [string, any]) => {
+          if (sectionKey === 'resumo') {
+            return `
+              <div class="section">
+                <div class="section-title">Resumo</div>
+                <div class="summary">
+                  ${Object.entries(sectionData).map(([key, value]) => 
+                    `<div class="summary-item">
+                      <span class="summary-label">${key}:</span>
+                      <span>${value}</span>
+                    </div>`
+                  ).join('')}
+                </div>
+              </div>
+            `
+          } else if (Array.isArray(sectionData) && sectionData.length > 0) {
+            const headers = Object.keys(sectionData[0])
+            return `
+              <div class="section">
+                <div class="section-title">${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1).replace(/([A-Z])/g, ' $1')}</div>
+                <table class="table">
+                  <thead>
+                    <tr>
+                      ${headers.map(header => `<th>${header}</th>`).join('')}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${sectionData.map(row => 
+                      `<tr>
+                        ${headers.map(header => `<td>${row[header] || '-'}</td>`).join('')}
+                      </tr>`
+                    ).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `
+          }
+          return ''
+        }).join('')}
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+    
+    setTimeout(() => {
+      printWindow.print()
+      toast.success('PDF gerado com sucesso!')
+    }, 500)
+  }
+
+  // Função para gerar Excel
+  const generateExcel = (data: any) => {
+    let csvContent = `${data.title}\n`
+    csvContent += `Gerado em: ${data.generatedAt}\n`
+    csvContent += `Período: ${data.period}\n\n`
+
+    Object.entries(data.data).forEach(([sectionKey, sectionData]: [string, any]) => {
+      csvContent += `${sectionKey.toUpperCase()}\n`
+      
+      if (sectionKey === 'resumo') {
+        Object.entries(sectionData).forEach(([key, value]) => {
+          csvContent += `${key};${value}\n`
+        })
+      } else if (Array.isArray(sectionData) && sectionData.length > 0) {
+        const headers = Object.keys(sectionData[0])
+        csvContent += `${headers.join(';')}\n`
+        sectionData.forEach(row => {
+          csvContent += `${headers.map(header => row[header] || '').join(';')}\n`
+        })
+      }
+      csvContent += '\n'
+    })
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${data.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success('Arquivo Excel gerado com sucesso!')
+  }
+
+  // Função para impressão
+  const printReport = (data: any) => {
+    generatePDF(data) // Reutiliza a função PDF para impressão
   }
 
   return (
@@ -546,27 +962,212 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          {/* Filtros */}
+
+
+          {/* Filtros Avançados */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="h-5 w-5 text-gray-400" />
-                <label className="text-sm font-medium text-black" style={{fontFamily: 'Arial, sans-serif'}}>
-                  Período:
+            <h2 className="text-lg font-semibold text-black mb-4">
+              Filtros Avançados
+            </h2>
+            
+            <div className="space-y-4">
+              {/* Tipo de Filtro */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Filtro
                 </label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="filterType"
+                      value="date"
+                      checked={tempFilters.filterType === 'date'}
+                      onChange={(e) => setTempFilters({...tempFilters, filterType: e.target.value as 'date' | 'period' | 'range'})}
+                      className="mr-2 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span className="text-black">Data Específica</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="filterType"
+                      value="period"
+                      checked={tempFilters.filterType === 'period'}
+                      onChange={(e) => setTempFilters({...tempFilters, filterType: e.target.value as 'date' | 'period' | 'range'})}
+                      className="mr-2 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span className="text-black">Período</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="filterType"
+                      value="range"
+                      checked={tempFilters.filterType === 'range'}
+                      onChange={(e) => setTempFilters({...tempFilters, filterType: e.target.value as 'date' | 'period' | 'range'})}
+                      className="mr-2 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span className="text-black">Intervalo de Datas</span>
+                  </label>
+                </div>
               </div>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                style={{color: 'black', fontFamily: 'Arial, sans-serif'}}
-              >
-                <option value="7">Últimos 7 dias</option>
-                <option value="30">Últimos 30 dias</option>
-                <option value="90">Últimos 90 dias</option>
-                <option value="365">Último ano</option>
-                <option value="custom">Período personalizado</option>
-              </select>
+
+              {/* Filtros Condicionais */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* Data Específica */}
+                {tempFilters.filterType === 'date' && (
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data
+                    </label>
+                    <div className="relative">
+                      <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                      <input
+                        type="date"
+                        value={tempFilters.selectedDate}
+                        onChange={(e) => setTempFilters({...tempFilters, selectedDate: e.target.value})}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Filtro por Período */}
+                {tempFilters.filterType === 'period' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tipo de Período
+                      </label>
+                      <select
+                        value={tempFilters.periodType}
+                        onChange={(e) => setTempFilters({...tempFilters, periodType: e.target.value as 'day' | 'month' | 'year', periodValue: ''})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                      >
+                        <option value="day">Dia</option>
+                        <option value="month">Mês</option>
+                        <option value="year">Ano</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {tempFilters.periodType === 'day' && 'Selecionar Dia'}
+                        {tempFilters.periodType === 'month' && 'Selecionar Mês'}
+                        {tempFilters.periodType === 'year' && 'Selecionar Ano'}
+                      </label>
+                      {tempFilters.periodType === 'day' && (
+                        <input
+                          type="date"
+                          value={tempFilters.periodValue}
+                          onChange={(e) => setTempFilters({...tempFilters, periodValue: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                        />
+                      )}
+                      {tempFilters.periodType === 'month' && (
+                        <input
+                          type="month"
+                          value={tempFilters.periodValue}
+                          onChange={(e) => setTempFilters({...tempFilters, periodValue: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                        />
+                      )}
+                      {tempFilters.periodType === 'year' && (
+                        <input
+                          type="number"
+                          min="2020"
+                          max="2030"
+                          placeholder="Ex: 2024"
+                          value={tempFilters.periodValue}
+                          onChange={(e) => setTempFilters({...tempFilters, periodValue: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black placeholder-gray-400"
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Intervalo de Datas */}
+                {tempFilters.filterType === 'range' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Data Inicial
+                      </label>
+                      <input
+                        type="date"
+                        value={tempFilters.startDate}
+                        onChange={(e) => setTempFilters({...tempFilters, startDate: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Data Final
+                      </label>
+                      <input
+                        type="date"
+                        value={tempFilters.endDate}
+                        onChange={(e) => setTempFilters({...tempFilters, endDate: e.target.value})}
+                        min={tempFilters.startDate}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Categoria */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categoria
+                  </label>
+                  <select
+                    value={tempFilters.categoryFilter}
+                    onChange={(e) => setTempFilters({...tempFilters, categoryFilter: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black"
+                  >
+                    <option value="all">Todas as Categorias</option>
+                    <option value="Vendas">Vendas</option>
+                    <option value="Produtos">Produtos</option>
+                    <option value="Clientes">Clientes</option>
+                    <option value="Estoque">Estoque</option>
+                    <option value="Financeiro">Financeiro</option>
+                  </select>
+                </div>
+
+                {/* Busca */}
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Nome do produto..."
+                      value={tempFilters.searchTerm}
+                      onChange={(e) => setTempFilters({...tempFilters, searchTerm: e.target.value})}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-black placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                <button
+                  onClick={applyFilters}
+                  className="flex-1 sm:flex-none px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors font-medium"
+                >
+                  🔍 Aplicar Filtros
+                </button>
+                <button
+                  onClick={clearFilters}
+                  className="flex-1 sm:flex-none px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors font-medium"
+                >
+                  🗑️ Limpar Filtros
+                </button>
+              </div>
             </div>
           </div>
 

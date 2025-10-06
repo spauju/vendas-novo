@@ -6,15 +6,17 @@ import SimpleAccessControl from '@/components/admin/SimpleAccessControl'
 import CadastroUsuarios from '@/components/admin/CadastroUsuarios'
 import DadosEmpresa from '@/components/admin/DadosEmpresa'
 import ConfiguracaoPix from '@/components/admin/ConfiguracaoPix'
+import GerenciarVendas from '@/components/admin/GerenciarVendas'
 import UserDebug from '@/components/debug/UserDebug'
 import { Toaster } from 'react-hot-toast'
 import { 
   UserPlusIcon, 
   BuildingOfficeIcon, 
-  CreditCardIcon 
+  CreditCardIcon,
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline'
 
-type TabType = 'usuarios' | 'empresa' | 'pix'
+type TabType = 'vendas' | 'usuarios' | 'empresa' | 'pix'
 
 interface Tab {
   id: TabType
@@ -23,6 +25,11 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
+  {
+    id: 'vendas',
+    name: 'Gerenciar Vendas',
+    icon: ShoppingCartIcon
+  },
   {
     id: 'usuarios',
     name: 'Cadastro de Usuários',
@@ -41,10 +48,12 @@ const tabs: Tab[] = [
 ]
 
 export default function ConfiguracoesGeraisPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('usuarios')
+  const [activeTab, setActiveTab] = useState<TabType>('vendas')
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'vendas':
+        return <GerenciarVendas />
       case 'usuarios':
         return <CadastroUsuarios />
       case 'empresa':
@@ -52,7 +61,7 @@ export default function ConfiguracoesGeraisPage() {
       case 'pix':
         return <ConfiguracaoPix />
       default:
-        return <CadastroUsuarios />
+        return <GerenciarVendas />
     }
   }
 
@@ -70,7 +79,7 @@ export default function ConfiguracoesGeraisPage() {
                 Configurações Gerais
               </h1>
               <p className="text-gray-600">
-                Gerencie usuários, dados da empresa e configurações de pagamento
+                Gerencie vendas, usuários, dados da empresa e configurações de pagamento
               </p>
             </div>
 
