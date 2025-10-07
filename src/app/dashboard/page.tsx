@@ -65,13 +65,17 @@ export default function DashboardPage() {
     try {
       setLoading(true)
       
-      // Carregar estatísticas de vendas de hoje
-      const today = new Date().toISOString().split('T')[0]
+      // Carregar estatísticas de vendas de hoje (usando timezone local)
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
       const { data: todaySales, error: salesError } = await supabase
         .from('sales')
         .select('total_amount, created_at')
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`)
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString())
 
       if (salesError) throw salesError
 

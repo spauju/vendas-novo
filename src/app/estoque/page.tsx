@@ -194,8 +194,8 @@ export default function InventoryPage() {
           product_id: movementForm.productId,
           movement_type: movementForm.movement_type,
           quantity: Math.abs(quantity),
-          notes: movementForm.notes,
-          user_id: 'current-user' // TODO: pegar do contexto de autenticação
+          notes: movementForm.notes
+          // user_id será null por enquanto até implementarmos autenticação
         })
 
       if (error) throw error
@@ -212,8 +212,17 @@ export default function InventoryPage() {
       // Recarregar dados
       await Promise.all([loadProducts(), loadMovements()])
     } catch (error) {
-      console.error('Erro ao registrar movimentação:', error)
-      toast.error('Erro ao registrar movimentação')
+      console.error('Erro ao registrar movimentação:', {
+        error,
+        message: (error as any)?.message || 'Erro desconhecido',
+        details: (error as any)?.details || 'Sem detalhes',
+        hint: (error as any)?.hint || 'Sem dica',
+        code: (error as any)?.code || 'Sem código'
+      })
+      
+      // Mostrar mensagem de erro mais específica
+      const errorMessage = (error as any)?.message || 'Erro desconhecido ao registrar movimentação'
+      toast.error(`Erro: ${errorMessage}`)
     }
   }
 
