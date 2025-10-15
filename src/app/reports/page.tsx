@@ -94,11 +94,22 @@ const reportTypes: ReportType[] = [
   }
 ]
 
+interface CompanyData {
+  razao_social: string
+  nome_fantasia: string | null
+  cnpj: string | null
+  inscricao_estadual: string | null
+  endereco: string
+  telefone: string | null
+  email_contato: string
+}
+
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('30')
   const [selectedReport, setSelectedReport] = useState('')
   const [reportData, setReportData] = useState<ReportData>({})
   const [loading, setLoading] = useState(false)
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null)
   
   // Estados para filtros avançados
   const [filterType, setFilterType] = useState<'date' | 'period' | 'range'>('period')
@@ -119,6 +130,31 @@ export default function ReportsPage() {
     categoryFilter: 'all',
     searchTerm: ''
   })
+
+  // Carregar dados da empresa ao montar o componente
+  useEffect(() => {
+    loadCompanyData()
+  }, [])
+
+  const loadCompanyData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('dados_empresa')
+        .select('*')
+        .single()
+      
+      if (error) {
+        console.error('Erro ao carregar dados da empresa:', error)
+        return
+      }
+      
+      if (data) {
+        setCompanyData(data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados da empresa:', error)
+    }
+  }
 
   // Função para aplicar filtros
   const applyFilters = () => {
@@ -828,6 +864,10 @@ export default function ReportsPage() {
         <title>${data.title}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+          .company-header { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white; padding: 20px; margin: -20px -20px 30px -20px; border-radius: 0; }
+          .company-name { font-size: 22px; font-weight: bold; margin-bottom: 8px; }
+          .company-info { font-size: 12px; opacity: 0.95; line-height: 1.6; }
+          .company-info-row { margin: 3px 0; }
           .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0d9488; padding-bottom: 20px; }
           .title { font-size: 24px; font-weight: bold; color: #0d9488; margin-bottom: 10px; }
           .info { font-size: 14px; color: #666; }
@@ -849,6 +889,19 @@ export default function ReportsPage() {
         </style>
       </head>
       <body>
+        ${companyData ? `
+        <div class="company-header">
+          <div class="company-name">${companyData.nome_fantasia || companyData.razao_social}</div>
+          <div class="company-info">
+            <div class="company-info-row"><strong>Razão Social:</strong> ${companyData.razao_social}</div>
+            ${companyData.cnpj ? `<div class="company-info-row"><strong>CNPJ:</strong> ${companyData.cnpj}</div>` : ''}
+            ${companyData.inscricao_estadual ? `<div class="company-info-row"><strong>Inscrição Estadual:</strong> ${companyData.inscricao_estadual}</div>` : ''}
+            <div class="company-info-row"><strong>Endereço:</strong> ${companyData.endereco}</div>
+            ${companyData.telefone ? `<div class="company-info-row"><strong>Telefone:</strong> ${companyData.telefone}</div>` : ''}
+            <div class="company-info-row"><strong>Email:</strong> ${companyData.email_contato}</div>
+          </div>
+        </div>
+        ` : ''}
         <div class="header">
           <div class="title">${data.title}</div>
           <div class="info">Gerado em: ${data.generatedAt}</div>
@@ -909,7 +962,21 @@ export default function ReportsPage() {
 
   // Função para gerar Excel
   const generateExcel = (data: any) => {
-    let csvContent = `${data.title}\n`
+    let csvContent = ''
+    
+    // Adicionar dados da empresa no cabeçalho
+    if (companyData) {
+      csvContent += `${companyData.nome_fantasia || companyData.razao_social}\n`
+      csvContent += `Razão Social: ${companyData.razao_social}\n`
+      if (companyData.cnpj) csvContent += `CNPJ: ${companyData.cnpj}\n`
+      if (companyData.inscricao_estadual) csvContent += `Inscrição Estadual: ${companyData.inscricao_estadual}\n`
+      csvContent += `Endereço: ${companyData.endereco}\n`
+      if (companyData.telefone) csvContent += `Telefone: ${companyData.telefone}\n`
+      csvContent += `Email: ${companyData.email_contato}\n`
+      csvContent += `\n${'='.repeat(80)}\n\n`
+    }
+    
+    csvContent += `${data.title}\n`
     csvContent += `Gerado em: ${data.generatedAt}\n`
     csvContent += `Período: ${data.period}\n\n`
 

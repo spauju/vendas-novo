@@ -8,7 +8,6 @@ import AbrirCaixaModal from '@/components/pdv/AbrirCaixaModal'
 import PaymentMethods from '@/components/pdv/PaymentMethods'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { logSupabaseDB } from '@/lib/logger'
 
 interface Product {
   id: string
@@ -34,27 +33,28 @@ interface CartItem {
 
 export default function PDVPage() {
   const { user } = useAuth()
+  
+  // Estados principais
   const [barcode, setBarcode] = useState('')
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [showPayment, setShowPayment] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [products, setProducts] = useState<Product[]>([])
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loading, setLoading] = useState(false)
   
-  // Estados para campos de cliente
+  // Estados de dados
+  const [products, setProducts] = useState<Product[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  
+  // Estados do cliente
+  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null)
   const [customerCpf, setCustomerCpf] = useState('')
   const [customerName, setCustomerName] = useState('')
-
-  // Estados para controle do caixa
+  
+  // Estados do caixa
   const [caixaAberto, setCaixaAberto] = useState(false)
   const [valorTrocoInicial, setValorTrocoInicial] = useState(0)
   const [isAbrirCaixaModalOpen, setIsAbrirCaixaModalOpen] = useState(false)
-
-  // Estados para produto encontrado
+  
+  // Estados do produto atual
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null)
   const [currentQuantity, setCurrentQuantity] = useState(1)
   const [currentPrice, setCurrentPrice] = useState('')
@@ -70,11 +70,34 @@ export default function PDVPage() {
     }
   }, [])
 
-  // Carregar produtos do banco de dados
+  // Carregar dados iniciais
   useEffect(() => {
     loadProducts()
     loadCustomers()
   }, [])
+
+  // Buscar cliente automaticamente quando CPF for digitado
+  useEffect(() => {
+    if (customerCpf.length >= 14) {
+      const customer = customers.find(c => 
+        c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === customerCpf.replace(/\D/g, '')
+      )
+      if (customer) {
+        setCustomerName(customer.name)
+        setSelectedCustomer(customer.id)
+        toast.success(`Cliente encontrado: ${customer.name}`)
+      } else {
+        setCustomerName('')
+        setSelectedCustomer(null)
+        if (customerCpf.length === 14) {
+          toast.error('Cliente não encontrado')
+        }
+      }
+    } else if (customerCpf.length === 0) {
+      setCustomerName('')
+      setSelectedCustomer(null)
+    }
+  }, [customerCpf, customers])
 
   const loadProducts = async () => {
     try {
@@ -86,16 +109,8 @@ export default function PDVPage() {
 
       if (error) throw error
       setProducts(data || [])
-      setFilteredProducts(data || [])
     } catch (error) {
       console.error('Erro ao carregar produtos:', error)
-      logSupabaseDB.failed('load_products', 'products', error as Error, {
-        component: 'PDVPage',
-        metadata: {
-          operation: 'loadProducts',
-          error: (error as any)?.message || 'Erro desconhecido'
-        }
-      });
       toast.error('Erro ao carregar produtos')
     }
   }
@@ -115,72 +130,28 @@ export default function PDVPage() {
     }
   }
 
-  // Filtrar produtos baseado na busca
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.barcode && product.barcode.includes(searchTerm))
-      )
-      setFilteredProducts(filtered)
-    } else {
-      setFilteredProducts(products)
-    }
-  }, [searchTerm, products])
-
-  // Buscar cliente automaticamente quando CPF for digitado
-  useEffect(() => {
-    if (customerCpf.length >= 14) { // CPF formatado tem 14 caracteres
-      const customer = customers.find(c => 
-        c.cpf_cnpj && c.cpf_cnpj.replace(/\D/g, '') === customerCpf.replace(/\D/g, '')
-      )
-      if (customer) {
-        setCustomerName(customer.name)
-        setSelectedCustomer(customer.id)
-        toast.success(`Cliente encontrado: ${customer.name}`)
-      } else {
-        setCustomerName('')
-        setSelectedCustomer(null)
-        // Não mostrar erro se o CPF ainda não estiver completo
-        if (customerCpf.length === 14) {
-          toast.error('Cliente não encontrado')
-        }
-      }
-    } else {
-      // Limpar nome se CPF for apagado
-      if (customerCpf.length === 0) {
-        setCustomerName('')
-        setSelectedCustomer(null)
-      }
-    }
-  }, [customerCpf, customers])
-
   const handleEnter = () => {
-    if (barcode) {
-      const product = products.find(p => p.barcode === barcode)
-      if (product) {
-        if (product.stock_quantity <= 0) {
-          toast.error('Produto sem estoque')
-          return
-        }
-        
-        // Preencher os campos com os dados do produto encontrado
-        setCurrentProduct(product)
-        setCurrentQuantity(1)
-        setCurrentPrice((product.sale_price || 0).toFixed(2).replace('.', ','))
-        
-        toast.success(`Produto encontrado: ${product.name}`)
-      } else {
-        toast.error('Produto não encontrado')
-        // Limpar os campos se produto não for encontrado
-        setCurrentProduct(null)
-        setCurrentQuantity(1)
-        setCurrentPrice('')
+    if (!barcode) return
+
+    const product = products.find(p => p.barcode === barcode)
+    if (product) {
+      if (product.stock_quantity <= 0) {
+        toast.error('Produto sem estoque')
+        return
       }
+      
+      setCurrentProduct(product)
+      setCurrentQuantity(1)
+      setCurrentPrice((product.sale_price || 0).toFixed(2).replace('.', ','))
+      toast.success(`Produto encontrado: ${product.name}`)
+    } else {
+      toast.error('Produto não encontrado')
+      setCurrentProduct(null)
+      setCurrentQuantity(1)
+      setCurrentPrice('')
     }
   }
 
-  // Nova função para adicionar produto ao carrinho com quantidade e preço personalizados
   const handleAddToCart = () => {
     if (!currentProduct) {
       toast.error('Nenhum produto selecionado')
@@ -198,10 +169,9 @@ export default function PDVPage() {
       return
     }
 
-    // Verificar estoque
     const existingItem = cartItems.find(item => item.id === currentProduct.id)
     const totalQuantity = existingItem ? existingItem.quantity + currentQuantity : currentQuantity
-    
+
     if (totalQuantity > currentProduct.stock_quantity) {
       toast.error('Estoque insuficiente')
       return
@@ -210,7 +180,7 @@ export default function PDVPage() {
     if (existingItem) {
       setCartItems(cartItems.map(item =>
         item.id === currentProduct.id
-          ? { ...item, quantity: item.quantity + currentQuantity, price: price }
+          ? { ...item, quantity: totalQuantity, price: price }
           : item
       ))
     } else {
@@ -225,7 +195,7 @@ export default function PDVPage() {
 
     toast.success(`${currentProduct.name} adicionado ao carrinho`)
     
-    // Limpar os campos após adicionar
+    // Limpar campos
     setBarcode('')
     setCurrentProduct(null)
     setCurrentQuantity(1)
@@ -246,38 +216,26 @@ export default function PDVPage() {
     return cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   }
 
-  const getDiscount = () => {
-    return 0 // Implementar logica de desconto
-  }
-
   const getTotal = () => {
-    return getSubtotal() - getDiscount()
+    return getSubtotal()
   }
 
-  // Função para formatar CPF
   const formatCPF = (value: string) => {
-    // Remove tudo que não é número
-    const numbers = value.replace(/\D/g, '')
+    const numbers = value.replace(/\D/g, '').slice(0, 11)
     
-    // Limita a 11 dígitos
-    const limitedNumbers = numbers.slice(0, 11)
-    
-    // Aplica a formatação
-    if (limitedNumbers.length <= 3) {
-      return limitedNumbers
-    } else if (limitedNumbers.length <= 6) {
-      return `${limitedNumbers.slice(0, 3)}.${limitedNumbers.slice(3)}`
-    } else if (limitedNumbers.length <= 9) {
-      return `${limitedNumbers.slice(0, 3)}.${limitedNumbers.slice(3, 6)}.${limitedNumbers.slice(6)}`
+    if (numbers.length <= 3) {
+      return numbers
+    } else if (numbers.length <= 6) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`
+    } else if (numbers.length <= 9) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`
     } else {
-      return `${limitedNumbers.slice(0, 3)}.${limitedNumbers.slice(3, 6)}.${limitedNumbers.slice(6, 9)}-${limitedNumbers.slice(9)}`
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`
     }
   }
 
-  // Função para lidar com mudanças no CPF
   const handleCpfChange = (value: string) => {
-    const formattedCpf = formatCPF(value)
-    setCustomerCpf(formattedCpf)
+    setCustomerCpf(formatCPF(value))
   }
 
   const handleFinalizeSale = () => {
@@ -295,84 +253,83 @@ export default function PDVPage() {
     }
 
     setLoading(true)
+    
     try {
-      // Criar a venda
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .insert({
-          customer_id: selectedCustomer,
-          user_id: user.id,
-          total_amount: getSubtotal(),
-          discount_amount: getDiscount(),
-          final_amount: getTotal(),
-          status: 'completed',
-          payment_method: paymentData.method,
-          payment_status: 'paid'
-        })
-        .select()
-        .single()
+      // Preparar dados da venda
+      const saleData = {
+        customer_id: selectedCustomer,
+        user_id: user.id,
+        total_amount: getSubtotal(),
+        discount_amount: 0,
+        final_amount: getTotal(),
+        status: 'completed',
+        payment_method: paymentData.method,
+        payment_status: 'paid'
+      }
 
-      if (saleError) throw saleError
-
-      // Criar os itens da venda
+      // Preparar itens da venda
       const saleItems = cartItems.map(item => ({
-        sale_id: sale.id,
         product_id: item.id,
         quantity: item.quantity,
         unit_price: item.price
       }))
 
-      const { error: itemsError } = await supabase
-        .from('sale_items')
-        .insert(saleItems)
+      // Usar função controlada para processar venda com estoque
+      const { data: result, error: processError } = await supabase.rpc('process_sale_with_stock_control', {
+        p_sale_data: saleData,
+        p_items: saleItems
+      })
 
-      if (itemsError) throw itemsError
+      if (processError) throw processError
 
-      toast.success('Venda finalizada com sucesso!')
-      
-      // Limpar o carrinho e recarregar produtos para atualizar estoque
-      setCartItems([])
-      setShowPayment(false)
-      setCustomerCpf('')
-      setCustomerName('')
-      setSelectedCustomer(null)
-      
-      // Recarregar produtos para mostrar estoque atualizado
-      await loadProducts()
+      if (result && result.success) {
+        toast.success('Venda finalizada com sucesso!')
+        
+        // Verificar se houve problemas com estoque
+        const stockResults = result.stock_results || []
+        const stockErrors = stockResults.filter((r: any) => !r.success)
+        
+        if (stockErrors.length > 0) {
+          console.warn('Problemas com estoque:', stockErrors)
+          toast.error('Venda processada, mas houve problemas com o estoque')
+        }
+        
+        // Limpar dados
+        setCartItems([])
+        setShowPayment(false)
+        setCustomerCpf('')
+        setCustomerName('')
+        setSelectedCustomer(null)
+        
+        // Recarregar produtos para atualizar estoque
+        await loadProducts()
+      } else {
+        throw new Error(result?.error || 'Erro ao processar venda')
+      }
       
     } catch (error) {
       console.error('Erro ao finalizar venda:', error)
-      logSupabaseDB.failed('process_sale', error, {
-        component: 'PDVPage',
-        metadata: {
-          operation: 'processSale',
-          totalAmount: getTotal(),
-          itemsCount: cartItems.length,
-          error: (error as any)?.message || 'Erro desconhecido'
-        }
-      });
       toast.error('Erro ao finalizar venda')
     } finally {
       setLoading(false)
     }
   }
 
-  // Funções para controle do caixa
   const handleConfirmAbrirCaixa = (initialValue: number) => {
     if (initialValue < 0) {
-        toast.error('O valor inicial não pode ser negativo.');
-        return;
+      toast.error('O valor inicial não pode ser negativo')
+      return
     }
-    setValorTrocoInicial(initialValue);
-    setCaixaAberto(true);
-    setIsAbrirCaixaModalOpen(false);
     
-    // Salvar no localStorage
-    localStorage.setItem('caixaAberto', 'true');
-    localStorage.setItem('valorTrocoInicial', initialValue.toString());
+    setValorTrocoInicial(initialValue)
+    setCaixaAberto(true)
+    setIsAbrirCaixaModalOpen(false)
     
-    toast.success(`Caixa aberto com troco inicial de R$ ${(initialValue || 0).toFixed(2).replace('.', ',')}`);
-  };
+    localStorage.setItem('caixaAberto', 'true')
+    localStorage.setItem('valorTrocoInicial', initialValue.toString())
+    
+    toast.success(`Caixa aberto com troco inicial de R$ ${initialValue.toFixed(2).replace('.', ',')}`)
+  }
 
   const handleFecharCaixa = () => {
     if (cartItems.length > 0) {
@@ -383,28 +340,26 @@ export default function PDVPage() {
     setCaixaAberto(false)
     setValorTrocoInicial(0)
     
-    // Limpar do localStorage
     localStorage.removeItem('caixaAberto')
     localStorage.removeItem('valorTrocoInicial')
     
     toast.success('Caixa fechado com sucesso')
   }
 
-
   return (
     <MainLayout>
       <div className="bg-gray-100 -m-4 sm:-m-6 min-h-[calc(100vh-120px)] relative">
-        {/* Cabecalho modificado */}
-        <div className="bg-white text-black">
+        {/* Cabeçalho */}
+        <div className="bg-emerald-600 text-white">
           <div className="px-4 sm:px-6 py-4">
-            <h1 className="text-lg sm:text-2xl font-bold tracking-wide text-white">CAIXA LIVRE - VENDA</h1>
+            <h1 className="text-lg sm:text-2xl font-bold tracking-wide">CAIXA LIVRE - VENDA</h1>
           </div>
         </div>
 
         {/* Layout principal */}
         <div className="p-4 sm:p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Controle do Caixa */}
+            {/* Status do Caixa */}
             {caixaAberto && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -412,7 +367,9 @@ export default function PDVPage() {
                     <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
                     <div>
                       <h3 className="text-lg font-semibold text-emerald-800">Caixa Aberto</h3>
-                      <p className="text-sm text-emerald-600">Troco inicial: R$ {(valorTrocoInicial || 0).toFixed(2).replace('.', ',')}</p>
+                      <p className="text-sm text-emerald-600">
+                        Troco inicial: R$ {valorTrocoInicial.toFixed(2).replace('.', ',')}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -428,37 +385,37 @@ export default function PDVPage() {
             {/* Controles superiores */}
             <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
-                {/* Cliente - Ocupa 5 colunas em telas grandes */}
+                {/* Cliente */}
                 <div className="lg:col-span-5">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cliente (Opcional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cliente (Opcional)
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <input
-                        type="text"
-                        value={customerCpf}
-                        onChange={(e) => handleCpfChange(e.target.value)}
-                        placeholder="000.000.000-00"
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        disabled={!caixaAberto}
-                        maxLength={14}
-                      />
-                    </div>
-                    <div className="sm:col-span-1">
-                      <input
-                        type="text"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Nome"
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        disabled={!caixaAberto}
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={customerCpf}
+                      onChange={(e) => handleCpfChange(e.target.value)}
+                      placeholder="000.000.000-00"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      disabled={!caixaAberto}
+                      maxLength={14}
+                    />
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Nome"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      disabled={!caixaAberto}
+                    />
                   </div>
                 </div>
 
-                {/* Código do Produto - Ocupa 3 colunas */}
+                {/* Código do Produto */}
                 <div className="lg:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Código do Produto</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Código do Produto
+                  </label>
                   <ProductCodeInput
                     value={barcode}
                     onChange={setBarcode}
@@ -469,9 +426,11 @@ export default function PDVPage() {
                   />
                 </div>
 
-                {/* Quantidade - Ocupa 2 colunas */}
+                {/* Quantidade */}
                 <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Quantidade
+                  </label>
                   <input
                     type="number"
                     min="1"
@@ -482,9 +441,11 @@ export default function PDVPage() {
                   />
                 </div>
 
-                {/* Preço Unitário - Ocupa 2 colunas */}
+                {/* Preço Unitário */}
                 <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Preço Unitário</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preço Unitário
+                  </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <input
@@ -509,117 +470,129 @@ export default function PDVPage() {
               </div>
             </div>
 
-            {/* Mostrar informações do produto encontrado */}
+            {/* Informações do produto encontrado */}
             {currentProduct && (
               <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <p className="text-sm text-emerald-800">
                   <strong>Produto:</strong> {currentProduct.name} | 
                   <strong> Estoque:</strong> {currentProduct.stock_quantity} unidades |
-                  <strong> Preço sugerido:</strong> R$ {(currentProduct?.sale_price || 0).toFixed(2).replace('.', ',')}
+                  <strong> Preço sugerido:</strong> R$ {(currentProduct.sale_price || 0).toFixed(2).replace('.', ',')}
                 </p>
               </div>
             )}
 
-            {/* Area principal */}
-            <div className="flex flex-col">
-              {/* Tabela de produtos */}
-              <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px]">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">Codigo</th>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">Descricao</th>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider w-20">Qtde.</th>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider w-12">A</th>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">Valor</th>
-                        <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">Total</th>
+            {/* Tabela de produtos */}
+            <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">
+                        Código
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">
+                        Descrição
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider w-20">
+                        Qtde.
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider w-12">
+                        UN
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">
+                        Valor
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs sm:text-sm font-medium text-gray-700 uppercase tracking-wider">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cartItems.map((item) => (
+                      <tr key={item.id} className="border-b hover:bg-gray-50">
+                        <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-black">
+                          {item.barcode}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-black">
+                          {item.name}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
+                            className="w-12 sm:w-16 px-1 sm:px-2 py-1 text-center border border-gray-300 rounded text-black text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            min="1"
+                          />
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 text-center text-xs sm:text-sm text-black">
+                          UN
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm text-black">
+                          R$ {(item.price || 0).toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-black">
+                          R$ {((item.price * item.quantity) || 0).toFixed(2).replace('.', ',')}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {cartItems.map((item, index) => (
-                        <tr key={item.id} className="border-b hover:bg-gray-50">
-                          <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-black">{item.barcode}</td>
-                          <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-black">{item.name}</td>
-                          <td className="px-2 sm:px-4 py-3 text-center">
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
-                              className="w-12 sm:w-16 px-1 sm:px-2 py-1 text-center border border-gray-300 rounded text-black text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                              min="1"
-                            />
-                          </td>
-                          <td className="px-2 sm:px-4 py-3 text-center text-xs sm:text-sm text-black">UN</td>
-                          <td className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm text-black">
-                            R$ {(item.price || 0).toFixed(2).replace('.', ',')}
-                          </td>
-                          <td className="px-2 sm:px-4 py-3 text-right text-xs sm:text-sm font-medium text-black">
-                            R$ {((item.price * item.quantity) || 0).toFixed(2).replace('.', ',')}
-                          </td>
-                        </tr>
-                      ))}
-                      {cartItems.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-2 sm:px-4 py-12 text-center text-black text-sm">
-                            Nenhum produto adicionado
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                    {cartItems.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-2 sm:px-4 py-12 text-center text-black text-sm">
+                          Nenhum produto adicionado
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              {/* Rodape com totais e botoes */}
-              <div className="bg-white rounded-lg shadow-sm border p-4">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    Total Itens: {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4 w-full lg:w-auto lg:min-w-[300px]">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Subtotal:</span>
-                        <span className="font-semibold">R$ {getSubtotal().toFixed(2).replace('.', ',')}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Desconto:</span>
-                        <span className="font-semibold">R$ {getDiscount().toFixed(2).replace('.', ',')}</span>
-                      </div>
-                      <div className="border-t border-gray-300 pt-2">
-                        <div className="flex justify-between text-lg font-bold text-gray-900">
-                          <span>TOTAL:</span>
-                          <span>R$ {getTotal().toFixed(2).replace('.', ',')}</span>
-                        </div>
+            {/* Rodapé com totais e botões */}
+            <div className="bg-white rounded-lg shadow-sm border p-4">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  Total Itens: {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-4 w-full lg:w-auto lg:min-w-[300px]">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold">R$ {getSubtotal().toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div className="border-t border-gray-300 pt-2">
+                      <div className="flex justify-between text-lg font-bold text-gray-900">
+                        <span>TOTAL:</span>
+                        <span>R$ {getTotal().toFixed(2).replace('.', ',')}</span>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Botoes de acao */}
-                <div className="flex flex-col sm:flex-row gap-3 mt-4 justify-center">
-                  <button
-                    onClick={handleFinalizeSale}
-                    disabled={!caixaAberto || cartItems.length === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Finalizar Venda
-                  </button>
-                  <button
-                    onClick={() => setCartItems([])}
-                    disabled={!caixaAberto || cartItems.length === 0}
-                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Cancelar Venda
-                  </button>
-                </div>
+              {/* Botões de ação */}
+              <div className="flex flex-col sm:flex-row gap-3 mt-4 justify-center">
+                <button
+                  onClick={handleFinalizeSale}
+                  disabled={!caixaAberto || cartItems.length === 0 || loading}
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Processando...' : 'Finalizar Venda'}
+                </button>
+                <button
+                  onClick={() => setCartItems([])}
+                  disabled={!caixaAberto || cartItems.length === 0 || loading}
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Cancelar Venda
+                </button>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Modal para abrir caixa */}
         <AbrirCaixaModal 
           isOpen={isAbrirCaixaModalOpen}
           onClose={() => setIsAbrirCaixaModalOpen(false)}
@@ -636,28 +609,28 @@ export default function PDVPage() {
               
               <div className="p-4 sm:p-6">
                 <PaymentMethods
-                total={getTotal()}
-                onPaymentComplete={handlePaymentComplete}
-                onCancel={() => setShowPayment(false)}
-              />
+                  total={getTotal()}
+                  onPaymentComplete={handlePaymentComplete}
+                  onCancel={() => setShowPayment(false)}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* Overlay e Botão para Abrir Caixa */}
+        {/* Overlay para caixa fechado */}
         {!caixaAberto && (
           <div className="absolute inset-0 bg-gray-900 bg-opacity-60 flex flex-col items-center justify-center z-40 backdrop-blur-sm">
-              <div className="text-center">
-                  <h2 className="text-3xl font-bold text-white mb-3">Caixa Fechado</h2>
-                  <p className="text-gray-300 mb-6">Você precisa abrir o caixa para iniciar as vendas.</p>
-                  <button 
-                      onClick={() => setIsAbrirCaixaModalOpen(true)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105"
-                  >
-                      Abrir Caixa
-                  </button>
-              </div>
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-white mb-3">Caixa Fechado</h2>
+              <p className="text-gray-300 mb-6">Você precisa abrir o caixa para iniciar as vendas.</p>
+              <button 
+                onClick={() => setIsAbrirCaixaModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105"
+              >
+                Abrir Caixa
+              </button>
+            </div>
           </div>
         )}
       </div>

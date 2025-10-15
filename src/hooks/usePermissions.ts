@@ -252,12 +252,6 @@ export const usePermissions = () => {
       permission.module === module && permission.can_view
     ) || false
     
-    console.log(`=== DEBUG PERMISSIONS ===`)
-    console.log(`Checking module: ${module}`)
-    console.log(`User role:`, userRole)
-    console.log(`User permissions:`, userRole?.permissions)
-    console.log(`Has access to ${module}:`, hasAccess)
-    
     return hasAccess
   }
 

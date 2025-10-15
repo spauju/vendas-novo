@@ -21,7 +21,7 @@ export type PaymentMethod =
 
 interface PaymentMethodsProps {
   total: number
-  onPaymentComplete: (paymentData: any) => void
+  onPaymentComplete: (paymentData: { method: PaymentMethod; amount: number }) => void
   onCancel: () => void
 }
 
@@ -77,188 +77,138 @@ const paymentOptions = [
   }
 ]
 
+const colorClasses = {
+  green: 'bg-green-50 border-green-200 hover:bg-green-100 text-green-800',
+  blue: 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-800',
+  purple: 'bg-purple-50 border-purple-200 hover:bg-purple-100 text-purple-800',
+  teal: 'bg-teal-50 border-teal-200 hover:bg-teal-100 text-teal-800',
+  indigo: 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-800',
+  gray: 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-800',
+  orange: 'bg-orange-50 border-orange-200 hover:bg-orange-100 text-orange-800'
+}
+
 export default function PaymentMethods({ total, onPaymentComplete, onCancel }: PaymentMethodsProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
-  const [cashAmount, setCashAmount] = useState('')
-  const [installments, setInstallments] = useState(1)
+  const [cashReceived, setCashReceived] = useState('')
+  const [processing, setProcessing] = useState(false)
 
-  const handleMethodSelect = (method: PaymentMethod) => {
-    setSelectedMethod(method)
-  }
-
-  const handleConfirmPayment = () => {
+  const handlePaymentConfirm = async () => {
     if (!selectedMethod) return
 
-    const paymentData = {
-      method: selectedMethod,
-      amount: selectedMethod === 'cash' ? (parseFloat(cashAmount) || total) : total,
-      installments: selectedMethod === 'credit' ? installments : 1
-    }
+    setProcessing(true)
 
-    onPaymentComplete(paymentData)
+    try {
+      // Validação para pagamento em dinheiro
+      if (selectedMethod === 'cash') {
+        const received = parseFloat(cashReceived.replace(',', '.')) || 0
+        if (received < total) {
+          alert('Valor recebido é menor que o total da venda')
+          setProcessing(false)
+          return
+        }
+      }
+
+      // Simular processamento
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      onPaymentComplete({
+        method: selectedMethod,
+        amount: total
+      })
+    } catch (error) {
+      console.error('Erro ao processar pagamento:', error)
+      alert('Erro ao processar pagamento')
+    } finally {
+      setProcessing(false)
+    }
   }
 
-  const cashChange = selectedMethod === 'cash' && cashAmount 
-    ? Math.max(0, parseFloat(cashAmount) - total)
-    : 0
+  const formatCurrency = (value: number) => {
+    return value.toFixed(2).replace('.', ',')
+  }
 
-  const installmentValue = installments > 1 ? total / installments : total
+  const calculateChange = () => {
+    if (selectedMethod !== 'cash') return 0
+    const received = parseFloat(cashReceived.replace(',', '.')) || 0
+    return Math.max(0, received - total)
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Forma de Pagamento
-          </h2>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="space-y-6">
+      {/* Total da venda */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <div className="text-center">
+          <p className="text-sm text-gray-600">Total a pagar</p>
+          <p className="text-2xl font-bold text-gray-900">R$ {formatCurrency(total)}</p>
         </div>
+      </div>
 
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-teal-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-base sm:text-lg font-medium text-gray-700">
-              Total a pagar:
-            </span>
-            <span className="text-xl sm:text-2xl font-bold text-teal-600">
-              R$ {(total || 0).toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* Opções de pagamento */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          {paymentOptions.map((option) => {
-            const Icon = option.icon
-            const isSelected = selectedMethod === option.id
-            
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleMethodSelect(option.id)}
-                className={`
-                  p-3 sm:p-4 rounded-xl border-2 transition-all duration-200 text-left
-                  ${
-                    isSelected
-                      ? `border-${option.color}-500 bg-${option.color}-50`
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }
-                `}
-              >
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className={`
-                    w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center flex-shrink-0
-                    ${
-                      isSelected
-                        ? `bg-${option.color}-100`
-                        : 'bg-gray-100'
-                    }
-                  `}>
-                    <Icon className={`
-                      w-5 h-5 sm:w-6 sm:h-6
-                      ${
-                        isSelected
-                          ? `text-${option.color}-600`
-                          : 'text-gray-600'
-                      }
-                    `} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-                      {option.name}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-gray-500 truncate">
-                      {option.description}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Configurações específicas do método */}
-        {selectedMethod === 'cash' && (
-          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">
-              Valor Recebido
-            </h3>
-            <input
-              type="number"
-              value={cashAmount}
-              onChange={(e) => setCashAmount(e.target.value)}
-              placeholder="Digite o valor recebido"
-              className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm sm:text-base"
-              step="0.01"
-              min="0"
-            />
-            {parseFloat(cashAmount) > 0 && (
-              <div className="mt-3 p-2 sm:p-3 bg-white rounded border">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm sm:text-base">Troco:</span>
-                  <span className={`font-semibold text-sm sm:text-base ${
-                    cashChange >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    R$ {Math.abs(cashChange || 0).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {selectedMethod === 'credit' && (
-          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">
-              Parcelamento
-            </h3>
-            <select
-              value={installments}
-              onChange={(e) => setInstallments(parseInt(e.target.value))}
-              className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm sm:text-base"
+      {/* Métodos de pagamento */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {paymentOptions.map((option) => {
+          const IconComponent = option.icon
+          const isSelected = selectedMethod === option.id
+          
+          return (
+            <button
+              key={option.id}
+              onClick={() => setSelectedMethod(option.id)}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                isSelected 
+                  ? `${colorClasses[option.color as keyof typeof colorClasses]} border-current` 
+                  : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+              }`}
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                <option key={num} value={num}>
-                  {num}x de R$ {(installmentValue || 0).toFixed(2)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+              <div className="flex flex-col items-center space-y-2">
+                <IconComponent className="h-8 w-8" />
+                <span className="text-sm font-medium">{option.name}</span>
+                <span className="text-xs opacity-75">{option.description}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
 
-        {selectedMethod === 'pix' && (
-          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg text-center">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-200 rounded-lg mx-auto mb-3 sm:mb-4 flex items-center justify-center">
-              <span className="text-xs sm:text-sm text-gray-500">QR Code</span>
+      {/* Campo para dinheiro */}
+      {selectedMethod === 'cash' && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <label className="block text-sm font-medium text-green-800 mb-2">
+            Valor recebido (R$)
+          </label>
+          <input
+            type="text"
+            value={cashReceived}
+            onChange={(e) => setCashReceived(e.target.value.replace(/[^\d,]/g, ''))}
+            placeholder="0,00"
+            className="w-full px-3 py-2 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            autoFocus
+          />
+          {cashReceived && (
+            <div className="mt-2 text-sm">
+              <p className="text-green-700">
+                Troco: <span className="font-semibold">R$ {formatCurrency(calculateChange())}</span>
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-gray-600">
-              Escaneie o QR Code com seu aplicativo do banco
-            </p>
-          </div>
-        )}
-
-        {/* Botões de ação */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 sm:px-6 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base font-medium"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirmPayment}
-            disabled={!selectedMethod || (selectedMethod === 'cash' && parseFloat(cashAmount) < total)}
-            className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm sm:text-base font-medium"
-          >
-            Confirmar Pagamento
-          </button>
+          )}
         </div>
+      )}
+
+      {/* Botões de ação */}
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          disabled={processing}
+          className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handlePaymentConfirm}
+          disabled={!selectedMethod || processing}
+          className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {processing ? 'Processando...' : 'Confirmar Pagamento'}
+        </button>
       </div>
     </div>
   )

@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, Fragment } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
-import { BanknotesIcon } from '@heroicons/react/24/outline'
+import { useState } from 'react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 
 interface AbrirCaixaModalProps {
   isOpen: boolean
@@ -11,95 +10,78 @@ interface AbrirCaixaModalProps {
 }
 
 export default function AbrirCaixaModal({ isOpen, onClose, onConfirm }: AbrirCaixaModalProps) {
-  const [valor, setValor] = useState('')
+  const [initialValue, setInitialValue] = useState('')
+
+  if (!isOpen) return null
 
   const handleConfirm = () => {
-    const initialValue = parseFloat(valor.replace(',', '.')) || 0
-    onConfirm(initialValue)
-    setValor('')
+    const value = parseFloat(initialValue.replace(',', '.')) || 0
+    if (value < 0) {
+      alert('O valor inicial não pode ser negativo')
+      return
+    }
+    onConfirm(value)
+    setInitialValue('')
+  }
+
+  const handleClose = () => {
+    setInitialValue('')
+    onClose()
+  }
+
+  const formatCurrency = (value: string) => {
+    // Remove tudo que não é número ou vírgula/ponto
+    const numbers = value.replace(/[^\d,\.]/g, '')
+    return numbers
   }
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-40" />
-        </Transition.Child>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Abrir Caixa</h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+        <div className="p-6">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Valor inicial para troco (R$)
+            </label>
+            <input
+              type="text"
+              value={initialValue}
+              onChange={(e) => setInitialValue(formatCurrency(e.target.value))}
+              placeholder="0,00"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              autoFocus
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Digite o valor que será usado como troco inicial
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleClose}
+              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title
-                  as="h3"
-                  className="text-lg font-medium leading-6 text-gray-900 flex items-center"
-                >
-                  <BanknotesIcon className="w-6 h-6 mr-2 text-emerald-600" />
-                  Abrir Caixa
-                </Dialog.Title>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500 mb-4">
-                    Digite o valor inicial do troco para abrir o caixa e iniciar as vendas.
-                  </p>
-                  
-                  <label htmlFor="initial-value" className="block text-sm font-medium text-gray-700">
-                    Valor Inicial (Troco)
-                  </label>
-                  <div className="relative mt-1 rounded-md shadow-sm">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <span className="text-gray-500 sm:text-sm">R$</span>
-                    </div>
-                    <input
-                      type="text"
-                      name="initial-value"
-                      id="initial-value"
-                      className="block w-full rounded-md border-gray-300 pl-7 pr-12 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                      placeholder="0,00"
-                      value={valor}
-                      onChange={(e) => setValor(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleConfirm()}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
-                    onClick={onClose}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                    onClick={handleConfirm}
-                  >
-                    Confirmar e Abrir Caixa
-                  </button>
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors"
+            >
+              Abrir Caixa
+            </button>
           </div>
         </div>
-      </Dialog>
-    </Transition>
+      </div>
+    </div>
   )
 }
