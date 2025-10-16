@@ -15,7 +15,7 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn, isAuthenticated } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
 
   // Clear form fields when component mounts or when coming from logout
@@ -24,13 +24,10 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
     setEmail('')
     setPassword('')
     
-    // If the user is not authenticated, clear any stored credentials in the browser
-    if (!isAuthenticated) {
-      // Clear any stored credentials in local storage if needed
-      localStorage.removeItem('tempEmail')
-      localStorage.removeItem('tempPassword')
-    }
-  }, [isAuthenticated])
+    // Clear any stored credentials in local storage if needed
+    localStorage.removeItem('tempEmail')
+    localStorage.removeItem('tempPassword')
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
