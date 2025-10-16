@@ -9,6 +9,7 @@ import {
   BuildingLibraryIcon,
   TicketIcon
 } from '@heroicons/react/24/outline'
+import PixQRCode from './PixQRCode'
 
 export type PaymentMethod = 
   | 'cash' 
@@ -91,6 +92,7 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [cashReceived, setCashReceived] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [showPixQR, setShowPixQR] = useState(false)
 
   const handlePaymentConfirm = async () => {
     if (!selectedMethod) return
@@ -133,6 +135,12 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
     return Math.max(0, received - total)
   }
 
+  const isInsufficientAmount = () => {
+    if (selectedMethod !== 'cash') return false
+    const received = parseFloat(cashReceived.replace(',', '.')) || 0
+    return cashReceived !== '' && received < total
+  }
+
   return (
     <div className="space-y-6">
       {/* Total da venda */}
@@ -152,7 +160,13 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
           return (
             <button
               key={option.id}
-              onClick={() => setSelectedMethod(option.id)}
+              onClick={() => {
+                setSelectedMethod(option.id)
+                // Abrir QR Code automaticamente ao selecionar PIX
+                if (option.id === 'pix') {
+                  setShowPixQR(true)
+                }
+              }}
               className={`p-4 rounded-lg border-2 transition-all ${
                 isSelected 
                   ? `${colorClasses[option.color as keyof typeof colorClasses]} border-current` 
@@ -169,10 +183,34 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
         })}
       </div>
 
+      {/* Botão para reabrir QR Code PIX */}
+      {selectedMethod === 'pix' && (
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+          <div className="text-center">
+            <QrCodeIcon className="w-12 h-12 text-teal-600 mx-auto mb-3" />
+            <p className="text-sm text-teal-800 mb-3">
+              Clique no botão abaixo para visualizar o QR Code PIX
+            </p>
+            <button
+              onClick={() => setShowPixQR(true)}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
+            >
+              Ver QR Code PIX
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Campo para dinheiro */}
       {selectedMethod === 'cash' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <label className="block text-sm font-medium text-green-800 mb-2">
+        <div className={`rounded-lg p-4 border-2 transition-colors ${
+          isInsufficientAmount() 
+            ? 'bg-red-50 border-red-300' 
+            : 'bg-green-50 border-green-200'
+        }`}>
+          <label className={`block text-sm font-medium mb-2 ${
+            isInsufficientAmount() ? 'text-red-800' : 'text-green-800'
+          }`}>
             Valor recebido (R$)
           </label>
           <input
@@ -180,14 +218,27 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
             value={cashReceived}
             onChange={(e) => setCashReceived(e.target.value.replace(/[^\d,]/g, ''))}
             placeholder="0,00"
-            className="w-full px-3 py-2 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            className={`w-full px-3 py-2 border-2 rounded-md focus:ring-2 transition-colors ${
+              isInsufficientAmount()
+                ? 'border-red-400 focus:ring-red-500 focus:border-red-500 bg-red-50 text-red-900'
+                : 'border-green-300 focus:ring-green-500 focus:border-green-500'
+            }`}
             autoFocus
           />
           {cashReceived && (
             <div className="mt-2 text-sm">
-              <p className="text-green-700">
-                Troco: <span className="font-semibold">R$ {formatCurrency(calculateChange())}</span>
-              </p>
+              {isInsufficientAmount() ? (
+                <p className="text-red-700 font-semibold flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  Valor insuficiente! Faltam R$ {formatCurrency(total - parseFloat(cashReceived.replace(',', '.') || '0'))}
+                </p>
+              ) : (
+                <p className="text-green-700">
+                  Troco: <span className="font-semibold">R$ {formatCurrency(calculateChange())}</span>
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -204,12 +255,20 @@ export default function PaymentMethods({ total, onPaymentComplete, onCancel }: P
         </button>
         <button
           onClick={handlePaymentConfirm}
-          disabled={!selectedMethod || processing}
+          disabled={!selectedMethod || processing || isInsufficientAmount()}
           className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {processing ? 'Processando...' : 'Confirmar Pagamento'}
+          {processing ? 'Processando...' : isInsufficientAmount() ? 'Valor Insuficiente' : 'Confirmar Pagamento'}
         </button>
       </div>
+
+      {/* Modal QR Code PIX */}
+      {showPixQR && (
+        <PixQRCode
+          amount={total}
+          onClose={() => setShowPixQR(false)}
+        />
+      )}
     </div>
   )
 }

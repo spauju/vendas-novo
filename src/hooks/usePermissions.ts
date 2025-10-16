@@ -45,7 +45,7 @@ export const usePermissions = () => {
         .from('profiles')
         .select('role, active')
         .eq('id', user!.id)
-        .single()
+        .maybeSingle() // Usar maybeSingle ao invés de single para evitar erro se houver múltiplos
 
       if (profileError) {
         logSupabaseDB.failed('fetch_profile', 'profiles', profileError as Error, {
@@ -57,7 +57,7 @@ export const usePermissions = () => {
           }
         });
         
-        // Se o perfil não existe, criar um perfil padrão
+        // Se houver erro, usar role padrão
         if (profileError.code === 'PGRST116') {
           logSupabaseDB.success('profile_not_found', 'profiles', { 
             component: 'usePermissions',

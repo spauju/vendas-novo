@@ -189,32 +189,30 @@ export default function DashboardPage() {
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
-              <div key={stat.name} className="bg-slate-800 rounded-xl p-4 sm:p-6 shadow-card border border-slate-700">
+              <div key={stat.name} className="bg-white rounded-xl p-4 sm:p-6 shadow-card border border-gray-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-slate-400 truncate">
+                    <p className="text-xs sm:text-sm font-medium text-black truncate">
                       {stat.name}
                     </p>
-                    <p className="text-lg sm:text-2xl font-bold text-white mt-1">
+                    <p className="text-lg sm:text-2xl font-bold text-black mt-1">
                       {stat.value}
                     </p>
                   </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border border-gray-300 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
                   </div>
                 </div>
                 <div className="flex items-center mt-3 sm:mt-4">
                   {stat.changeType === 'positive' ? (
-                    <ArrowTrendingUpIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-400 mr-1 flex-shrink-0" />
+                    <ArrowTrendingUpIcon className="w-3 h-3 sm:w-4 sm:h-4 text-black mr-1 flex-shrink-0" />
                   ) : (
-                    <ArrowTrendingDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-400 mr-1 flex-shrink-0" />
+                    <ArrowTrendingDownIcon className="w-3 h-3 sm:w-4 sm:h-4 text-black mr-1 flex-shrink-0" />
                   )}
-                  <span className={`text-xs sm:text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-400' : 'text-red-400'
-                  }`}>
+                  <span className={`text-xs sm:text-sm font-medium text-black`}>
                     {stat.change}
                   </span>
-                  <span className="text-xs sm:text-sm text-slate-400 ml-1">
+                  <span className="text-xs sm:text-sm text-black ml-1">
                     vs. ontem
                   </span>
                 </div>
@@ -225,11 +223,11 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
           {/* Produtos com estoque baixo */}
-          <div className="bg-slate-800 rounded-xl shadow-card border border-slate-700">
-            <div className="p-4 sm:p-6 border-b border-slate-700">
+          <div className="bg-white rounded-xl shadow-card border border-gray-200">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
               <div className="flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 mr-2" />
-                <h2 className="text-base sm:text-lg font-semibold text-white">
+                <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-black mr-2" />
+                <h2 className="text-base sm:text-lg font-semibold text-black">
                   Estoque Baixo
                 </h2>
               </div>
@@ -240,7 +238,7 @@ export default function DashboardPage() {
             <div className="p-4 sm:p-6">
               <div className="space-y-3 sm:space-y-4">
                 {lowStockProducts.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                  <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-black text-sm sm:text-base truncate">
                         {product.name}
@@ -250,7 +248,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <span className="inline-flex items-center px-2 py-1 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                      <span className="inline-flex items-center px-2 py-1 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-medium bg-white border border-gray-300 text-black">
                         Baixo
                       </span>
                     </div>
@@ -275,8 +273,8 @@ export default function DashboardPage() {
                 {recentSales.map((sale) => (
                   <div key={sale.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
                     <div className="flex items-center flex-1 min-w-0">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-teal-100 to-teal-200 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs sm:text-sm font-medium text-teal-600">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs sm:text-sm font-medium text-black">
                           #{sale.id}
                         </span>
                       </div>
@@ -304,50 +302,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Ações rápidas */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold text-black mb-4">
-            Ações Rápidas
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <PermissionButton
-              module="pdv"
-              action="create"
-              onClick={() => router.push('/pdv')}
-              className="flex items-center justify-center p-3 sm:p-4 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-xl hover:from-teal-700 hover:to-teal-800 transition-all duration-200 shadow-lg shadow-teal-600/25"
-            >
-              <ShoppingCartIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              <span className="text-sm sm:text-base font-medium">Nova Venda</span>
-            </PermissionButton>
-            <PermissionButton
-              module="clientes"
-              action="create"
-              onClick={() => router.push('/clientes')}
-              className="flex items-center justify-center p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg shadow-blue-600/25"
-            >
-              <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              <span className="text-sm sm:text-base font-medium">Cadastrar Cliente</span>
-            </PermissionButton>
-            <PermissionButton
-              module="fornecedores"
-              action="create"
-              onClick={() => router.push('/fornecedores')}
-              className="flex items-center justify-center p-3 sm:p-4 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all duration-200 shadow-lg shadow-orange-600/25"
-            >
-              <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              <span className="text-sm sm:text-base font-medium">Cadastrar Fornecedor</span>
-            </PermissionButton>
-            <PermissionButton
-              module="produtos"
-              action="create"
-              onClick={() => router.push('/produtos')}
-              className="flex items-center justify-center p-3 sm:p-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg shadow-purple-600/25"
-            >
-              <CubeIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              <span className="text-sm sm:text-base font-medium">Adicionar Produto</span>
-            </PermissionButton>
-          </div>
-        </div>
+
       </div>
     </MainLayout>
   )

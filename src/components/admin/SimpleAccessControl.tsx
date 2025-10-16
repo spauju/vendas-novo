@@ -3,21 +3,20 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 interface SimpleAccessControlProps {
   children: React.ReactNode
 }
 
 export default function SimpleAccessControl({ children }: SimpleAccessControlProps) {
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
   const [hasAccess, setHasAccess] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
   const [debugInfo, setDebugInfo] = useState<any>(null)
 
   useEffect(() => {
-    const checkAccess = async () => {
+    const checkAccess = () => {
       if (authLoading) return
 
       if (!user) {
@@ -27,50 +26,29 @@ export default function SimpleAccessControl({ children }: SimpleAccessControlPro
       }
 
       try {
-        const supabase = createClientComponentClient()
-        
         console.log('=== SIMPLE ACCESS CONTROL DEBUG ===')
         console.log('User ID:', user.id)
         console.log('User Email:', user.email)
-        
-        // Buscar perfil com todas as colunas possíveis
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
+        console.log('Profile from Context:', profile)
 
-        console.log('Profile data:', profile)
-        console.log('Profile error:', error)
-
-        setDebugInfo({ profile, error, userId: user.id, userEmail: user.email })
-
-        if (error) {
-          console.error('Erro ao buscar perfil:', error)
-          router.push('/dashboard')
-          return
-        }
+        setDebugInfo({ profile, userId: user.id, userEmail: user.email })
 
         if (!profile) {
-          console.error('Perfil não encontrado')
+          console.error('Perfil não encontrado no contexto')
           router.push('/dashboard')
+          setIsChecking(false)
           return
         }
 
-        // Verificar todas as possíveis colunas de função
-        const userRole = profile.funcao || profile.role || profile.tipo || null
+        // Verificar função do usuário
+        const userRole = profile.role
         console.log('User Role encontrado:', userRole)
 
-        // Verificar se é admin ou gerente (aceitar variações)
-        const roleStr = String(userRole || '').toLowerCase().trim()
+        // Verificar se é admin ou gerente
         const isAuthorized = 
-          roleStr === 'administrador' || 
-          roleStr === 'admin' || 
-          roleStr === 'administrator' ||
-          roleStr === 'gerente' ||
-          roleStr === 'manager'
+          userRole === 'administrador' || 
+          userRole === 'gerente'
 
-        console.log('Role string:', roleStr)
         console.log('Is Authorized:', isAuthorized)
 
         if (isAuthorized) {
@@ -89,7 +67,7 @@ export default function SimpleAccessControl({ children }: SimpleAccessControlPro
     }
 
     checkAccess()
-  }, [user, authLoading, router])
+  }, [user, profile, authLoading, router])
 
   if (authLoading || isChecking) {
     return (
@@ -119,10 +97,8 @@ export default function SimpleAccessControl({ children }: SimpleAccessControlPro
               <p className="font-bold mb-2">Informações de Debug:</p>
               <p><strong>User ID:</strong> {debugInfo.userId}</p>
               <p><strong>Email:</strong> {debugInfo.userEmail}</p>
-              <p><strong>Função encontrada:</strong> {debugInfo.profile?.funcao || debugInfo.profile?.role || 'Não definida'}</p>
-              {debugInfo.error && (
-                <p className="text-red-600"><strong>Erro:</strong> {debugInfo.error.message}</p>
-              )}
+              <p><strong>Função encontrada:</strong> {debugInfo.profile?.role || 'Não definida'}</p>
+              <p><strong>Acesso permitido para:</strong> administrador, gerente</p>
             </div>
           )}
           

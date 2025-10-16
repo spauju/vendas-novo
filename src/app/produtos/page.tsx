@@ -40,7 +40,33 @@ interface Product {
   updated_at: string
 }
 
-const categories = ['Todos', 'Bebidas', 'Padaria', 'Laticínios', 'Limpeza', 'Higiene', 'Mercearia', 'Grãos']
+const categories = [
+  'Todos', 
+  'Acessórios',
+  'Açougue', 
+  'Bebidas',
+  'Bolsas e Mochilas',
+  'Calçados Femininos',
+  'Calçados Infantis',
+  'Calçados Masculinos',
+  'Congelados', 
+  'Diversos',
+  'Doces e Sobremesas',
+  'Frios e Laticínios',
+  'Frutas e Verduras',
+  'Grãos e Cereais',
+  'Higiene Pessoal',
+  'Limpeza',
+  'Mercearia',
+  'Moda Feminina',
+  'Moda Infantil',
+  'Moda Masculina',
+  'Padaria e Confeitaria',
+  'Petiscos e Snacks',
+  'Roupas Esportivas',
+  'Roupas Íntimas',
+  'Utilidades Domésticas'
+]
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -54,7 +80,7 @@ export default function ProductsPage() {
     name: '',
     description: '',
     barcode: '',
-    category: 'Bebidas',
+    category: 'Açougue',
     brand: '',
     cost_price: '',
     sale_price: '',
@@ -229,7 +255,7 @@ export default function ProductsPage() {
       name: '',
       description: '',
       barcode: '',
-      category: 'Bebidas',
+      category: 'Açougue',
       brand: '',
       cost_price: '',
       sale_price: '',
@@ -247,7 +273,7 @@ export default function ProductsPage() {
       name: product.name,
       description: product.description || '',
       barcode: product.barcode || '',
-      category: product.category || 'Bebidas',
+      category: product.category || 'Açougue',
       brand: product.brand || '',
       cost_price: product.cost_price.toString(),
       sale_price: product.sale_price.toString(),

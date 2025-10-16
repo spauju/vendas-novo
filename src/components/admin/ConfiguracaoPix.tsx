@@ -36,6 +36,9 @@ export default function ConfiguracaoPix() {
       case 'Telefone':
         const phone = chave.replace(/\D/g, '')
         return phone.length >= 10 && phone.length <= 11
+      case 'CPF':
+        const cpf = chave.replace(/\D/g, '')
+        return cpf.length === 11
       case 'CNPJ':
         const cnpj = chave.replace(/\D/g, '')
         return cnpj.length === 14
@@ -85,6 +88,8 @@ export default function ConfiguracaoPix() {
         return 'exemplo@email.com'
       case 'Telefone':
         return '(11) 99999-9999'
+      case 'CPF':
+        return '000.000.000-00'
       case 'CNPJ':
         return '00.000.000/0000-00'
       case 'Chave Aleatória':
@@ -102,6 +107,9 @@ export default function ConfiguracaoPix() {
           return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
         }
         return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+      case 'CPF':
+        const cpfNumbers = value.replace(/\D/g, '')
+        return cpfNumbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
       case 'CNPJ':
         const cnpjNumbers = value.replace(/\D/g, '')
         return cnpjNumbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
@@ -118,6 +126,7 @@ export default function ConfiguracaoPix() {
   const tiposChave = [
     { value: 'Email', label: 'Email' },
     { value: 'Telefone', label: 'Telefone' },
+    { value: 'CPF', label: 'CPF' },
     { value: 'CNPJ', label: 'CNPJ' },
     { value: 'Chave Aleatória', label: 'Chave Aleatória' }
   ]

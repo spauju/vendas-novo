@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { 
   UserCircleIcon, 
-  Cog6ToothIcon, 
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
   Bars3Icon
@@ -49,20 +48,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <Bars3Icon className="h-6 w-6" />
         </button>
 
-        {/* Logo e nome da loja */}
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center">
-            <img src="/pvn.svg" alt="Logo PVN" className="w-8 h-8 sm:w-10 sm:h-10" />
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
-              Sistema
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-600">
-              Loja Principal
-            </p>
-          </div>
-        </div>
+
       </div>
 
       {/* Informações do usuário e menu */}
@@ -116,25 +102,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <Menu.Item>
                   {({ active }) => (
                     <button
+                      onClick={() => router.push('/perfil')}
                       className={`${
                         active ? 'bg-gray-50 text-primary' : 'text-gray-700'
                       } group flex w-full items-center rounded-lg px-3 py-2.5 text-sm transition-all duration-200`}
                     >
                       <UserCircleIcon className="mr-3 h-5 w-5 text-gray-500" />
                       Meu Perfil
-                    </button>
-                  )}
-                </Menu.Item>
-                
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={`${
-                        active ? 'bg-gray-50 text-primary' : 'text-gray-700'
-                      } group flex w-full items-center rounded-lg px-3 py-2.5 text-sm transition-all duration-200`}
-                    >
-                      <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-500" />
-                      Configurações
                     </button>
                   )}
                 </Menu.Item>
