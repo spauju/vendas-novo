@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
@@ -15,8 +15,22 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn } = useAuth()
+  const { signIn, isAuthenticated } = useAuth()
   const router = useRouter()
+
+  // Clear form fields when component mounts or when coming from logout
+  useEffect(() => {
+    // Clear the form fields when the component mounts
+    setEmail('')
+    setPassword('')
+    
+    // If the user is not authenticated, clear any stored credentials in the browser
+    if (!isAuthenticated) {
+      // Clear any stored credentials in local storage if needed
+      localStorage.removeItem('tempEmail')
+      localStorage.removeItem('tempPassword')
+    }
+  }, [isAuthenticated])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,19 +143,6 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
             )}
           </button>
         </form>
-
-        <div className="mt-4 sm:mt-6 text-center">
-          <p className="text-sm sm:text-base text-gray-600">
-            Não tem uma conta?{' '}
-            <button
-              onClick={onToggleMode}
-              className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-              disabled={isLoading}
-            >
-              Criar conta
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   )

@@ -11,38 +11,31 @@ export const useAdmin = () => {
     try {
       setIsLoading(true)
 
-      // Criar usuário usando Admin API (não faz login automático)
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: dadosUsuario.email,
-        password: dadosUsuario.senha,
-        email_confirm: true, // Confirma o email automaticamente
-        user_metadata: {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        throw new Error('Você precisa estar autenticado para criar usuários')
+      }
+
+      // Call API route to create user (uses service role key server-side)
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          email: dadosUsuario.email,
+          senha: dadosUsuario.senha,
           full_name: dadosUsuario.full_name
-        }
+        })
       })
 
-      if (authError) {
-        throw authError
-      }
+      const result = await response.json()
 
-      if (!authData.user) {
-        throw new Error('Erro ao criar usuário')
-      }
-
-      // Inserir dados na tabela profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          full_name: dadosUsuario.full_name,
-          email: dadosUsuario.email,
-          funcao: 'usuario'
-        }, {
-          onConflict: 'id'
-        })
-
-      if (profileError) {
-        throw profileError
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao criar usuário')
       }
 
       toast.success('Usuário cadastrado com sucesso!')
@@ -54,7 +47,7 @@ export const useAdmin = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   // Listar usuários
   const listarUsuarios = useCallback(async (): Promise<Usuario[]> => {

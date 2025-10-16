@@ -78,3 +78,33 @@ pids
 
 # Supabase local development
 .supabase/
+
+# Scripts de teste com credenciais (não devem ir para produção)
+criar-*.js
+testar-*.js
+verificar-*.js
+add-*.js
+adicionar-*.js
+aplicar-*.js
+atualizar-*.js
+buscar-*.js
+check-*.js
+correcao-*.js
+corrigir-*.js
+diagnosticar-*.js
+diagnostico-*.js
+disable-*.js
+encontrar-*.js
+executar-*.js
+fix-*.js
+funcao-*.js
+implementar-*.js
+inserir-*.js
+listar-*.js
+migrar-*.js
+remover-*.js
+resetar-*.js
+restaurar-*.js
+setup-*.js
+test-*.js
+update-*.js
