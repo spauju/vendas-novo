@@ -17,7 +17,7 @@ export default function ProductCodeInput({
   value,
   onChange,
   onEnter,
-  placeholder = "Digite o código ou escaneie",
+  placeholder = "Digite o código, nome do produto ou escaneie",
   autoFocus = false,
   disabled = false
 }: ProductCodeInputProps) {

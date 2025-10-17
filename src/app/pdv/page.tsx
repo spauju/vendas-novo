@@ -133,7 +133,27 @@ export default function PDVPage() {
   const handleEnter = () => {
     if (!barcode) return
 
-    const product = products.find(p => p.barcode === barcode)
+    // Primeiro, tentar buscar por código de barras exato
+    let product = products.find(p => p.barcode === barcode)
+    
+    // Se não encontrou por código de barras, buscar por nome (busca parcial, case-insensitive)
+    if (!product) {
+      const searchTerm = barcode.toLowerCase().trim()
+      const matchingProducts = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm)
+      )
+      
+      if (matchingProducts.length === 1) {
+        // Se encontrou exatamente um produto, selecionar automaticamente
+        product = matchingProducts[0]
+      } else if (matchingProducts.length > 1) {
+        // Se encontrou múltiplos produtos, mostrar os primeiros 3 como sugestão
+        const suggestions = matchingProducts.slice(0, 3).map(p => p.name).join(', ')
+        toast.error(`Múltiplos produtos encontrados: ${suggestions}. Digite mais caracteres para refinar a busca.`)
+        return
+      }
+    }
+
     if (product) {
       if (product.stock_quantity <= 0) {
         toast.error('Produto sem estoque')
@@ -420,7 +440,7 @@ export default function PDVPage() {
                     value={barcode}
                     onChange={setBarcode}
                     onEnter={handleEnter}
-                    placeholder={caixaAberto ? "Digite o código ou escaneie" : "Abra o caixa para começar"}
+                    placeholder={caixaAberto ? "Digite o código, nome do produto ou escaneie" : "Abra o caixa para começar"}
                     autoFocus={true}
                     disabled={!caixaAberto}
                   />
